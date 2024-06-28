@@ -20,7 +20,7 @@ func LoadPrivateKey(filePath string) (PrivateKey, error) {
 		return nil, errors.New("bad type in pem block")
 	}
 
-	kem := nameToKEM[cleanPemType(block.Type)]
+	kem := nameToKEM[block.Headers["KEM"]]
 	if kem == 0 {
 		return nil, errors.New("bad kem name in pem block")
 	}
@@ -45,7 +45,7 @@ func LoadEncryptedPrivateKey(filePath string, key []byte) (PrivateKey, error) {
 		return nil, errors.New("bad type in pem block")
 	}
 
-	kem := nameToKEM[cleanPemType(block.Type)]
+	kem := nameToKEM[block.Headers["kem"]]
 	if kem == 0 {
 		return nil, errors.New("bad kem name in pem block")
 	}
@@ -88,8 +88,7 @@ func SavePrivateKey(filePath string, privateKey PrivateKey) error {
 		return fmt.Errorf("error marshalling private key: %w", err)
 	}
 
-	pemType := formatPemType(kemToID[privateKey.KEM()]) + " PRIVATE KEY"
-	return writePem(filePath, pemType, keyBytes, nil, 0600)
+	return writePem(filePath, "PRIVATE KEY", keyBytes, nil, 0600)
 }
 
 func SaveEncryptedPrivateKey(filePath string, privateKey PrivateKey, key []byte) error {
@@ -121,6 +120,5 @@ func SaveEncryptedPrivateKey(filePath string, privateKey PrivateKey, key []byte)
 		Salt:    salt,
 	}
 
-	pemType := formatPemType(kemToID[privateKey.KEM()]) + " PRIVATE KEY"
-	return writePem(filePath, pemType, encryptedKeyBytes, header, 0600)
+	return writePem(filePath, "PUBLIC KEY", encryptedKeyBytes, header.Map(), 0600)
 }

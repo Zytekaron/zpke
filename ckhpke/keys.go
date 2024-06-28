@@ -13,7 +13,6 @@ import (
 	"io"
 	"os"
 	"slices"
-	"strings"
 
 	"github.com/cloudflare/circl/hpke"
 	"golang.org/x/crypto/hkdf"
@@ -201,17 +200,12 @@ func readPem(filePath string) (*pem.Block, error) {
 
 // readPem creates and writes a new *pem.Block to a
 // file, optionally including a *keyEncryptionHeader.
-func writePem(filePath, pemType string, keyBytes []byte, header *keyEncryptionHeader, perm os.FileMode) error {
+func writePem(filePath, pemType string, keyBytes []byte, headerMap map[string]string, perm os.FileMode) error {
 	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, perm)
 	if err != nil {
 		return fmt.Errorf("error creating file: %w", err)
 	}
 	defer file.Close()
-
-	var headerMap map[string]string
-	if header != nil {
-		headerMap = header.Map()
-	}
 
 	err = pem.Encode(file, &pem.Block{
 		Type:    pemType,
@@ -224,20 +218,20 @@ func writePem(filePath, pemType string, keyBytes []byte, header *keyEncryptionHe
 	return nil
 }
 
-// convert a mapped format to a pem name (processing steps are known)
-// KEM X25519 HKDF SHA256 PRIVATE KEY -> kem_x25519_hkdf_sha256
-func formatPemType(text string) string {
-	text = strings.ReplaceAll(text, "_", " ")
-	text = strings.ToUpper(text)
-	return text
-}
-
-// convert a pem name to a mapped format (processing steps are known)
-// KEM X25519 HKDF SHA256 PRIVATE KEY -> kem_x25519_hkdf_sha256
-func cleanPemType(text string) string {
-	text = strings.TrimSuffix(text, " PUBLIC KEY")
-	text = strings.TrimSuffix(text, " PRIVATE KEY")
-	text = strings.ReplaceAll(text, " ", "_")
-	text = strings.ToLower(text)
-	return text
-}
+//// convert a mapped format to a pem name (processing steps are known)
+//// KEM X25519 HKDF SHA256 PRIVATE KEY -> kem_x25519_hkdf_sha256
+//func formatPemType(text string) string {
+//	text = strings.ReplaceAll(text, "_", " ")
+//	text = strings.ToUpper(text)
+//	return text
+//}
+//
+//// convert a pem name to a mapped format (processing steps are known)
+//// KEM X25519 HKDF SHA256 PRIVATE KEY -> kem_x25519_hkdf_sha256
+//func cleanPemType(text string) string {
+//	text = strings.TrimSuffix(text, " PUBLIC KEY")
+//	text = strings.TrimSuffix(text, " PRIVATE KEY")
+//	text = strings.ReplaceAll(text, " ", "_")
+//	text = strings.ToLower(text)
+//	return text
+//}

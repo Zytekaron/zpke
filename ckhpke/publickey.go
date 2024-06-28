@@ -37,6 +37,5 @@ func SavePublicKey(filePath string, publicKey PublicKey) error {
 		return fmt.Errorf("error marshalling private key: %w", err)
 	}
 
-	pemType := formatPemType(kemToID[publicKey.KEM()]) + " PUBLIC KEY"
-	return writePem(filePath, pemType, keyBytes, nil, 0644)
+	return writePem(filePath, "PUBLIC KEY", keyBytes, nil, 0644)
 }
