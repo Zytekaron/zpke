@@ -3,7 +3,7 @@ package ckhpke
 import (
 	"errors"
 	"fmt"
-	"strings"
+	"slices"
 )
 
 func LoadPublicKey(filePath string) (PublicKey, error) {
@@ -11,7 +11,7 @@ func LoadPublicKey(filePath string) (PublicKey, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error reading pem file: %w", err)
 	}
-	if !strings.HasSuffix(block.Type, " PUBLIC KEY") {
+	if block.Type != "HPKE PUBLIC KEY" {
 		return nil, errors.New("bad type in pem block")
 	}
 
@@ -37,5 +37,37 @@ func SavePublicKey(filePath string, publicKey PublicKey) error {
 		return fmt.Errorf("error marshalling private key: %w", err)
 	}
 
-	return writePem(filePath, "PUBLIC KEY", keyBytes, nil, 0644)
+	header := &publicKeyHeader{
+		KEM: kemToID[publicKey.KEM()],
+	}
+	return writePem(filePath, "HPKE PUBLIC KEY", keyBytes, header.Map(), 0644)
+}
+
+// privateKeyHeader contains information about encryption
+// algorithms and parameters used to encrypt a private
+// key prior to export or saving to disk.
+type publicKeyHeader struct {
+	// KEM is the name of the key encapsulation mechanism
+	// which indicates the algorithm underlying this key.
+	KEM string
+}
+
+// Map generates the map to pass in as the *pem.Block headers.
+func (h *publicKeyHeader) Map() map[string]string {
+	return map[string]string{
+		"KEM": h.KEM,
+	}
+}
+
+// parsePublicKeyHeader parses *pem.Block headers corresponding to a *publicKeyHeader.
+func parsePublicKeyHeader(m map[string]string) (*publicKeyHeader, error) {
+	h := &publicKeyHeader{}
+
+	var ok bool
+	h.KEM, ok = m["KEM"]
+	if !ok || slices.Contains(validKeyAEADs, "KEM") {
+		return nil, fmt.Errorf("invalid or missing kem '%s'", h.KEM)
+	}
+
+	return h, nil
 }

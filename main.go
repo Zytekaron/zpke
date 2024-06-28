@@ -6,13 +6,13 @@ import (
 	"os"
 	"time"
 
-	"cryptokit/hpkecli/ckhpke"
 	"github.com/cloudflare/circl/hpke"
 	"github.com/spf13/pflag"
+	"hpke-cli/ckhpke"
 )
 
 var modeGenerate, modeEncrypt, modeDecrypt bool
-var kemName, kdfName, aeadName, keyFileName, inputFileName, outputFileName string
+var kemName, kdfName, aeadName, keyFileName, keyPassword, inputFileName, outputFileName string
 
 var selKEM hpke.KEM
 var selKDF hpke.KDF
@@ -29,11 +29,15 @@ decrypt:
 `
 
 func init() {
+	return // run tests
+
 	pflag.BoolVarP(&modeGenerate, "generate", "g", false, "generate mode")
 	pflag.BoolVarP(&modeEncrypt, "encrypt", "e", false, "encryption mode")
 	pflag.BoolVarP(&modeDecrypt, "decrypt", "d", false, "decryption mode")
 
 	pflag.StringVarP(&keyFileName, "key", "k", "", "key file name")
+	pflag.StringVarP(&keyPassword, "password", "p", "", "key password")
+
 	pflag.StringVarP(&inputFileName, "input", "i", "", "input file name")
 	pflag.StringVarP(&outputFileName, "output", "o", "", "output file name")
 
@@ -79,7 +83,7 @@ func init() {
 func main() {
 	testSaveLoadKeys()
 
-	return
+	return // run tests
 
 	pk, sk, err := ckhpke.GenerateKeyPair(selKEM)
 	if selKEM == 0 {
@@ -109,6 +113,7 @@ func main() {
 	in2.Close()
 
 	//switch {
+	//case modeGenerate:
 	//case modeEncrypt:
 	//case modeDecrypt:
 	//}
@@ -141,29 +146,29 @@ func testSaveLoadKeys() {
 	fmt.Println(pk.Signature(), sk.Signature())
 	fmt.Println()
 
-	err = ckhpke.SavePublicKey("td/pub.pem", pk)
+	err = ckhpke.SavePublicKey("testdir/pub.pem", pk)
 	if err != nil {
 		log.Fatalln("failed to save sk:", err)
 	}
-	err = ckhpke.SavePrivateKey("td/priv.pem", sk)
+	err = ckhpke.SavePrivateKey("testdir/priv.pem", sk, nil)
 	if err != nil {
 		log.Fatalln("failed to save sk:", err)
 	}
-	err = ckhpke.SaveEncryptedPrivateKey("td/priv_encrypted.pem", sk, key)
+	err = ckhpke.SavePrivateKey("testdir/priv_encrypted.pem", sk, key)
 	if err != nil {
 		log.Fatalln("failed to save encrypted sk:", err)
 	}
 
-	pk, err = ckhpke.LoadPublicKey("td/pub.pem")
+	pk, err = ckhpke.LoadPublicKey("testdir/pub.pem")
 	if err != nil {
 		log.Fatalln("failed to load sk:", err)
 	}
-	sk, err = ckhpke.LoadPrivateKey("td/priv.pem")
+	sk, err = ckhpke.LoadPrivateKey("testdir/priv.pem", nil)
 	if err != nil {
 		log.Fatalln("failed to load sk:", err)
 	}
 	fmt.Println(pk.Signature(), sk.Signature())
-	sk, err = ckhpke.LoadEncryptedPrivateKey("td/priv_encrypted.pem", key)
+	sk, err = ckhpke.LoadPrivateKey("testdir/priv_encrypted.pem", key)
 	if err != nil {
 		log.Fatalln("failed to load encrypted sk:", err)
 	}
