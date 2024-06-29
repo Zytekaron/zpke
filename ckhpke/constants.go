@@ -33,7 +33,7 @@ var nameToKEM = map[string]hpke.KEM{}
 var nameToKDF = map[string]hpke.KDF{}
 var nameToAEAD = map[string]hpke.AEAD{}
 
-var ErrMismatchedKEM = errors.New("the key does not match the provided kem")
+var ErrMismatchedKEM = errors.New("the key does not match the provided KEM")
 
 func init() {
 	for it, names := range kemMap {

@@ -1,108 +1,131 @@
 package ckhpke
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/base64"
-	"encoding/hex"
+	"errors"
+	"fmt"
 	"io"
 	"strconv"
 
 	"github.com/cloudflare/circl/hpke"
-	"github.com/cloudflare/circl/kem"
 )
 
-type Header struct {
+type EncryptionHeader struct {
 	// Version is the library version that this was encrypted in.
-	Version int `json:"version"`
+	Version int
 	// KEM is the hpke.KEM used for the public/private keypair.
-	KEM hpke.KEM `json:"kem"`
+	KEM hpke.KEM
 	// KDF is the hpke.KDF used to derive the encryption keu.
-	KDF hpke.KDF `json:"kdf"`
+	KDF hpke.KDF
 	// AEAD is the hpke.AEAD used to encrypt the data.
-	AEAD hpke.AEAD `json:"aead"`
+	AEAD hpke.AEAD
 	// EncapKey is the encapsulated key for encryption/decryption.
-	EncapKey []byte `json:"encap_key"`
+	EncapKey []byte
 }
 
-func (h *Header) WriteTo(w io.Writer) (int64, error) {
+// ParseEncryptionHeader reads and parses an encryption header
+// block from a *bufio.Scanner until reaching a blank line.
+func ParseEncryptionHeader(scanner *bufio.Scanner) (*EncryptionHeader, error) {
+	header := &EncryptionHeader{}
+
+	// parse version line
+	if !scanner.Scan() {
+		return nil, io.ErrUnexpectedEOF
+	}
+	label, value, ok := parseLine(scanner.Text())
+	if !ok || label != "Version" {
+		return nil, errors.New("invalid version line")
+	}
+	version, err := strconv.Atoi(value)
+	if err != nil {
+		return nil, fmt.Errorf("invalid version value: %w", err)
+	}
+	header.Version = version
+
+	// parse KEM line
+	if !scanner.Scan() {
+		return nil, io.ErrUnexpectedEOF
+	}
+	label, value, ok = parseLine(scanner.Text())
+	if !ok || label != "KEM" {
+		return nil, errors.New("invalid kem line")
+	}
+	kem := nameToKEM[value]
+	if kem == 0 {
+		return nil, fmt.Errorf("invalid kem value: unknown kem '%s'", value)
+	}
+	header.KEM = kem
+
+	// parse KEM line
+	if !scanner.Scan() {
+		return nil, io.ErrUnexpectedEOF
+	}
+	label, value, ok = parseLine(scanner.Text())
+	if !ok || label != "KDF" {
+		return nil, errors.New("invalid kdf line")
+	}
+	kdf := nameToKDF[value]
+	if kem == 0 {
+		return nil, fmt.Errorf("invalid kdf value: unknown kdf '%s'", value)
+	}
+	header.KDF = kdf
+
+	// parse aead line
+	if !scanner.Scan() {
+		return nil, io.ErrUnexpectedEOF
+	}
+	label, value, ok = parseLine(scanner.Text())
+	if !ok || label != "AEAD" {
+		return nil, errors.New("invalid aead line")
+	}
+	aead := nameToAEAD[value]
+	if aead == 0 {
+		return nil, fmt.Errorf("invalid aead value: unknown aead '%s'", value)
+	}
+	header.AEAD = aead
+
+	// parse encapsulated key line
+	if !scanner.Scan() {
+		return nil, io.ErrUnexpectedEOF
+	}
+	label, value, ok = parseLine(scanner.Text())
+	if !ok || label != "EncapsulatedKey" {
+		return nil, errors.New("invalid encapsulated key line")
+	}
+	encapKey, err := base64.RawURLEncoding.DecodeString(value)
+	if err != nil {
+		return nil, fmt.Errorf("invalid encapsulated key value: %w", err)
+	}
+	header.EncapKey = encapKey
+
+	return header, nil
+}
+
+func (h *EncryptionHeader) WriteTo(w io.Writer) (int64, error) {
 	n, err := w.Write(h.Encode())
 	return int64(n), err
 }
 
-func (h *Header) Encode() []byte {
+func (h *EncryptionHeader) Encode() []byte {
 	var buf bytes.Buffer
 
-	buf.WriteString("version: ")
+	buf.WriteString("Version: ")
 	buf.WriteString(strconv.Itoa(h.Version))
 
-	buf.WriteString("\nkem: ")
+	buf.WriteString("\nKEM: ")
 	buf.WriteString(kemToID[h.KEM])
 
-	buf.WriteString("\nkdf: ")
+	buf.WriteString("\nKDF: ")
 	buf.WriteString(kdfToID[h.KDF])
 
-	buf.WriteString("\naead: ")
+	buf.WriteString("\nAEAD: ")
 	buf.WriteString(aeadToID[h.AEAD])
 
-	buf.WriteString("\nencapsulated_key: ")
+	buf.WriteString("\nEncapsulatedKey: ")
 	buf.WriteString(base64.RawURLEncoding.EncodeToString(h.EncapKey))
 
 	buf.WriteString("\n")
 	return buf.Bytes()
-}
-
-type PublicKey interface {
-	Key() kem.PublicKey
-	KEM() hpke.KEM
-	Signature() string
-}
-
-type PrivateKey interface {
-	Key() kem.PrivateKey
-	KEM() hpke.KEM
-	Signature() string
-}
-
-type publicKeyKEM struct {
-	kem.PublicKey
-	kem hpke.KEM
-}
-
-func (k *publicKeyKEM) KEM() hpke.KEM {
-	return k.kem
-}
-
-func (k *publicKeyKEM) Key() kem.PublicKey {
-	return k.PublicKey
-}
-
-func (k *publicKeyKEM) Signature() string {
-	bytes, err := k.MarshalBinary()
-	if err != nil {
-		panic(err)
-	}
-	l := len(bytes)
-	return hex.EncodeToString(bytes[:4]) + ":" + hex.EncodeToString(bytes[l-4:l])
-}
-
-type privateKeyKEM struct {
-	kem.PrivateKey
-	kem hpke.KEM
-}
-
-func (k *privateKeyKEM) KEM() hpke.KEM {
-	return k.kem
-}
-
-func (k *privateKeyKEM) Key() kem.PrivateKey {
-	return k.PrivateKey
-}
-
-func (k *privateKeyKEM) Signature() string {
-	bytes, err := k.MarshalBinary()
-	if err != nil {
-		panic(err)
-	}
-	l := len(bytes)
-	return hex.EncodeToString(bytes[:4]) + ":" + hex.EncodeToString(bytes[l-4:l])
 }

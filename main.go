@@ -85,7 +85,7 @@ func main() {
 
 	return // run tests
 
-	pk, sk, err := ckhpke.GenerateKeyPair(selKEM)
+	pk, sk, err := ckhpke.GenerateKeyPair(selKEM, "", "")
 	if selKEM == 0 {
 		log.Fatalln("failed to gen keypair:", err)
 	}
@@ -134,11 +134,14 @@ func try2[T, U any](t T, u U, err error) (T, U) {
 }
 
 func testSaveLoadKeys() {
-	key := []byte("Hello, World!!")
+	const name = "Michael Thornes"
+	const comment = "Zytekaron"
 
 	selKEM = hpke.KEM_X25519_HKDF_SHA256
 
-	pk, sk, err := ckhpke.GenerateKeyPair(selKEM)
+	key := []byte("Hello, World!!")
+
+	pk, sk, err := ckhpke.GenerateKeyPair(selKEM, name, comment)
 	if selKEM == 0 {
 		log.Fatalln("failed to gen keypair:", err)
 	}

@@ -21,9 +21,9 @@ const encryptVersion = 0
 // encodes to base64, and writes to the output stream.
 const encryptBufferSize = 4096
 
-func TestEncryptSave(w io.Writer, r io.Reader, suite hpke.Suite, publicKey PublicKey) error {
+func TestEncryptSave(w io.Writer, r io.Reader, suite hpke.Suite, publicKey *PublicKey) error {
 	kem, kdf, aead := suite.Params()
-	if kem != publicKey.KEM() {
+	if kem != publicKey.KEM {
 		return ErrMismatchedKEM
 	}
 
@@ -36,7 +36,7 @@ func TestEncryptSave(w io.Writer, r io.Reader, suite hpke.Suite, publicKey Publi
 		return fmt.Errorf("error setting up sender: %w", err)
 	}
 
-	header := Header{
+	header := EncryptionHeader{
 		Version:  encryptVersion,
 		KEM:      kem,
 		KDF:      kdf,

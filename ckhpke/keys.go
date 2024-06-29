@@ -23,19 +23,23 @@ var ErrInvalidKDF = errors.New("invalid kdf identifier")
 var ErrInvalidAEAD = errors.New("invalid aead identifier")
 
 // GenerateKeyPair generates a key pair based on the provided hpke.KEM.
-func GenerateKeyPair(kem hpke.KEM) (PublicKey, PrivateKey, error) {
+func GenerateKeyPair(kem hpke.KEM, name, comment string) (*PublicKey, *PrivateKey, error) {
 	publicKey, privateKey, err := kem.Scheme().GenerateKeyPair()
 	if err != nil {
 		return nil, nil, fmt.Errorf("generating key pair: %w", err)
 	}
 
-	pk := &publicKeyKEM{
+	pk := &PublicKey{
 		PublicKey: publicKey,
-		kem:       kem,
+		KEM:       kem,
+		Name:      name,
+		Comment:   comment,
 	}
-	sk := &privateKeyKEM{
+	sk := &PrivateKey{
 		PrivateKey: privateKey,
-		kem:        kem,
+		KEM:        kem,
+		Name:       name,
+		Comment:    comment,
 	}
 	return pk, sk, nil
 }

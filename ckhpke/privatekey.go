@@ -3,16 +3,20 @@ package ckhpke
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"slices"
+
+	"github.com/cloudflare/circl/hpke"
+	"github.com/cloudflare/circl/kem"
 )
 
 var validKeyAEADs = []string{"aes-gcm"}
 var validKeyKDFs = []string{"hkdf_sha512"}
 
-func LoadPrivateKey(filePath string, key []byte) (PrivateKey, error) {
+func LoadPrivateKey(filePath string, key []byte) (*PrivateKey, error) {
 	block, err := readPem(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("error reading pem file: %w", err)
@@ -23,7 +27,7 @@ func LoadPrivateKey(filePath string, key []byte) (PrivateKey, error) {
 
 	kem := nameToKEM[block.Headers["KEM"]]
 	if kem == 0 {
-		return nil, errors.New("bad kem name in pem block")
+		return nil, errors.New("bad KEM name in pem block")
 	}
 
 	header, err := parsePrivateKeyHeader(block.Headers)
@@ -52,20 +56,22 @@ func LoadPrivateKey(filePath string, key []byte) (PrivateKey, error) {
 		return nil, fmt.Errorf("error parsing private key bytes: %w", err)
 	}
 
-	return &privateKeyKEM{
+	return &PrivateKey{
 		PrivateKey: privateKey,
-		kem:        kem,
+		KEM:        kem,
+		Name:       header.Name,
+		Comment:    header.Comment,
 	}, nil
 }
 
-func SavePrivateKey(filePath string, privateKey PrivateKey, key []byte) error {
+func SavePrivateKey(filePath string, privateKey *PrivateKey, key []byte) error {
 	keyBytes, err := privateKey.Key().MarshalBinary()
 	if err != nil {
 		return fmt.Errorf("error marshalling private key: %w", err)
 	}
 
 	header := &privateKeyHeader{
-		KEM: kemToID[privateKey.KEM()],
+		KEM: kemToID[privateKey.KEM],
 	}
 	if key != nil {
 		salt := make([]byte, 32)
@@ -86,7 +92,9 @@ func SavePrivateKey(filePath string, privateKey PrivateKey, key []byte) error {
 		keyBytes = encryptedKeyBytes
 
 		header = &privateKeyHeader{
-			KEM:       kemToID[privateKey.KEM()],
+			Name:      privateKey.Name,
+			Comment:   privateKey.Comment,
+			KEM:       kemToID[privateKey.KEM],
 			Encrypted: true,
 			AEAD:      currentKeyAEAD,
 			KDF:       currentKeyKDF,
@@ -98,10 +106,37 @@ func SavePrivateKey(filePath string, privateKey PrivateKey, key []byte) error {
 	return writePem(filePath, "HPKE PRIVATE KEY", keyBytes, header.Map(), 0600)
 }
 
+type PrivateKey struct {
+	PrivateKey kem.PrivateKey
+	KEM        hpke.KEM
+	Name       string
+	Comment    string
+}
+
+func (k *PrivateKey) Key() kem.PrivateKey {
+	return k.PrivateKey
+}
+
+func (k *PrivateKey) Signature() string {
+	bytes, err := k.PrivateKey.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	l := len(bytes)
+	return hex.EncodeToString(bytes[:4]) + ":" + hex.EncodeToString(bytes[l-4:l])
+}
+
 // privateKeyHeader contains information about encryption
 // algorithms and parameters used to encrypt a private
 // key prior to export or saving to disk.
 type privateKeyHeader struct {
+	// Name is an optional string representing the name
+	// of the user who provisioned the private key.
+	Name string
+	// Comment is an optional string containing any extra
+	// information to associate with the private key.
+	Comment string
+
 	// KEM is the name of the key encapsulation mechanism
 	// which indicates the algorithm underlying this key.
 	KEM string
@@ -122,19 +157,26 @@ type privateKeyHeader struct {
 
 // Map generates the map to pass in as the *pem.Block headers.
 func (h *privateKeyHeader) Map() map[string]string {
-	if !h.Encrypted {
-		return map[string]string{
-			"KEM": h.KEM,
-		}
+	m := map[string]string{
+		"KEM": h.KEM,
 	}
-	return map[string]string{
-		"KEM":       h.KEM,
-		"Encrypted": "true",
-		"AEAD":      h.AEAD,
-		"KDF":       h.KDF,
-		"Nonce":     base64.StdEncoding.EncodeToString(h.Nonce),
-		"Salt":      base64.StdEncoding.EncodeToString(h.Salt),
+
+	if h.Name != "" {
+		m["Name"] = h.Name
 	}
+	if h.Comment != "" {
+		m["Comment"] = h.Comment
+	}
+
+	if h.Encrypted {
+		m["Encrypted"] = "true"
+		m["AEAD"] = h.AEAD
+		m["KDF"] = h.KDF
+		m["Nonce"] = base64.StdEncoding.EncodeToString(h.Nonce)
+		m["Salt"] = base64.StdEncoding.EncodeToString(h.Salt)
+	}
+
+	return m
 }
 
 // parsePrivateKeyHeader parses *pem.Block headers corresponding to a *privateKeyHeader.
@@ -146,7 +188,7 @@ func parsePrivateKeyHeader(m map[string]string) (*privateKeyHeader, error) {
 
 	h.KEM, ok = m["KEM"]
 	if !ok || slices.Contains(validKeyAEADs, "KEM") {
-		return nil, fmt.Errorf("invalid or missing kem '%s'", h.KEM)
+		return nil, fmt.Errorf("invalid or missing KEM '%s'", h.KEM)
 	}
 
 	if m["Encrypted"] == "true" {
