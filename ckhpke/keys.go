@@ -19,6 +19,7 @@ import (
 const currentKeyAEAD = "aes-gcm"
 const currentKeyKDF = "hkdf_sha512"
 
+var ErrInvalidPEMType = errors.New("invalid type in pem block")
 var ErrInvalidKDF = errors.New("invalid kdf identifier")
 var ErrInvalidAEAD = errors.New("invalid aead identifier")
 

@@ -115,13 +115,13 @@ func (h *EncryptionHeader) Encode() []byte {
 	buf.WriteString(strconv.Itoa(h.Version))
 
 	buf.WriteString("\nKEM: ")
-	buf.WriteString(kemToID[h.KEM])
+	buf.WriteString(kemToName[h.KEM])
 
 	buf.WriteString("\nKDF: ")
-	buf.WriteString(kdfToID[h.KDF])
+	buf.WriteString(kdfToName[h.KDF])
 
 	buf.WriteString("\nAEAD: ")
-	buf.WriteString(aeadToID[h.AEAD])
+	buf.WriteString(aeadToName[h.AEAD])
 
 	buf.WriteString("\nEncapsulatedKey: ")
 	buf.WriteString(base64.RawURLEncoding.EncodeToString(h.EncapKey))

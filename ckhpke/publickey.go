@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"slices"
+	"strings"
 
 	"github.com/cloudflare/circl/hpke"
 	"github.com/cloudflare/circl/kem"
@@ -16,27 +16,27 @@ func LoadPublicKey(filePath string) (*PublicKey, error) {
 		return nil, fmt.Errorf("error reading pem file: %w", err)
 	}
 	if block.Type != "HPKE PUBLIC KEY" {
-		return nil, errors.New("bad type in pem block")
+		return nil, ErrInvalidPEMType
 	}
 
-	kem := nameToKEM[block.Headers["KEM"]]
-	if kem == 0 {
-		return nil, errors.New("bad KEM name in pem block")
+	kemName := nameToKEM[block.Headers["KEM"]]
+	if kemName == 0 {
+		return nil, errors.New("bad kem name in pem block")
 	}
 
 	header, err := parsePublicKeyHeader(block.Headers)
-	if kem == 0 {
+	if kemName == 0 {
 		return nil, fmt.Errorf("error parsing public key header: %w", err)
 	}
 
-	key, err := kem.Scheme().UnmarshalBinaryPublicKey(block.Bytes)
+	publicKey, err := kemName.Scheme().UnmarshalBinaryPublicKey(block.Bytes)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing private key bytes: %w", err)
+		return nil, fmt.Errorf("error parsing public key bytes: %w", err)
 	}
 
 	return &PublicKey{
-		PublicKey: key,
-		KEM:       kem,
+		PublicKey: publicKey,
+		KEM:       kemName,
 		Name:      header.Name,
 		Comment:   header.Comment,
 	}, nil
@@ -45,15 +45,19 @@ func LoadPublicKey(filePath string) (*PublicKey, error) {
 func SavePublicKey(filePath string, publicKey *PublicKey) error {
 	keyBytes, err := publicKey.Key().MarshalBinary()
 	if err != nil {
-		return fmt.Errorf("error marshalling private key: %w", err)
+		return fmt.Errorf("error marshalling public key: %w", err)
 	}
 
 	header := &publicKeyHeader{
-		KEM:     kemToID[publicKey.KEM],
+		KEM:     publicKey.KEM,
 		Name:    publicKey.Name,
 		Comment: publicKey.Comment,
 	}
-	return writePem(filePath, "HPKE PUBLIC KEY", keyBytes, header.Map(), 0644)
+	err = writePem(filePath, "HPKE PUBLIC KEY", keyBytes, header.Map(), 0644)
+	if err != nil {
+		return fmt.Errorf("error writing pem to file: %w", err)
+	}
+	return nil
 }
 
 type PublicKey struct {
@@ -72,13 +76,20 @@ func (k *PublicKey) Signature() string {
 	if err != nil {
 		panic(err)
 	}
-	l := len(bytes)
-	return hex.EncodeToString(bytes[:4]) + ":" + hex.EncodeToString(bytes[l-4:l])
+	return hex.EncodeToString(bytes[:8])
 }
 
-// privateKeyHeader contains information about encryption
-// algorithms and parameters used to encrypt a private
-// key prior to export or saving to disk.
+func (k *PublicKey) String() string {
+	var buf strings.Builder
+	buf.WriteString(k.Name)
+	buf.WriteString(" (")
+	buf.WriteString(k.Comment)
+	buf.WriteString("): ")
+	buf.WriteString(k.Signature())
+	return buf.String()
+}
+
+// publicKeyHeader contains information about a public key.
 type publicKeyHeader struct {
 	// Name is an optional string representing the name
 	// of the user who provisioned the private key.
@@ -87,15 +98,14 @@ type publicKeyHeader struct {
 	// information to associate with the private key.
 	Comment string
 
-	// KEM is the name of the key encapsulation mechanism
-	// which indicates the algorithm underlying this key.
-	KEM string
+	// KEM is the key encapsulation mechanism underlying this key.
+	KEM hpke.KEM
 }
 
 // Map generates the map to pass in as the *pem.Block headers.
 func (h *publicKeyHeader) Map() map[string]string {
 	m := map[string]string{
-		"KEM": h.KEM,
+		"KEM": kemToName[h.KEM],
 	}
 
 	if h.Name != "" {
@@ -110,12 +120,18 @@ func (h *publicKeyHeader) Map() map[string]string {
 
 // parsePublicKeyHeader parses *pem.Block headers corresponding to a *publicKeyHeader.
 func parsePublicKeyHeader(m map[string]string) (*publicKeyHeader, error) {
-	h := &publicKeyHeader{}
+	h := &publicKeyHeader{
+		Name:    m["Name"],
+		Comment: m["Comment"],
+	}
 
-	var ok bool
-	h.KEM, ok = m["KEM"]
-	if !ok || slices.Contains(validKeyAEADs, "KEM") {
-		return nil, fmt.Errorf("invalid or missing KEM '%s'", h.KEM)
+	kemName, ok := m["KEM"]
+	if !ok {
+		return nil, fmt.Errorf("missing kem field")
+	}
+	h.KEM = nameToKEM[kemName]
+	if h.KEM == 0 {
+		return nil, fmt.Errorf("invalid kem '%s'", kemName)
 	}
 
 	return h, nil

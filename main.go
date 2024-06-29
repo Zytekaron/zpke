@@ -146,8 +146,9 @@ func testSaveLoadKeys() {
 		log.Fatalln("failed to gen keypair:", err)
 	}
 
+	fmt.Println("Public:", pk)
+	fmt.Println("Private:", sk)
 	fmt.Println(pk.Signature(), sk.Signature())
-	fmt.Println()
 
 	err = ckhpke.SavePublicKey("testdir/pub.pem", pk)
 	if err != nil {
@@ -170,11 +171,18 @@ func testSaveLoadKeys() {
 	if err != nil {
 		log.Fatalln("failed to load sk:", err)
 	}
+	fmt.Println()
+	fmt.Println("Public:", pk)
+	fmt.Println("Private:", sk)
 	fmt.Println(pk.Signature(), sk.Signature())
+
 	sk, err = ckhpke.LoadPrivateKey("testdir/priv_encrypted.pem", key)
 	if err != nil {
 		log.Fatalln("failed to load encrypted sk:", err)
 	}
+	fmt.Println()
+	fmt.Println("Public:", pk)
+	fmt.Println("Private:", sk)
 	fmt.Println(pk.Signature(), sk.Signature())
 }
 

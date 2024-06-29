@@ -26,9 +26,9 @@ var aeadMap = map[hpke.AEAD][]string{
 	hpke.AEAD_ChaCha20Poly1305: {"aead_chacha20poly1305", "chacha20poly1305", "aead_chacha20_poly1305", "chacha20_poly1305", "0x03"},
 }
 
-var kemToID = map[hpke.KEM]string{}
-var kdfToID = map[hpke.KDF]string{}
-var aeadToID = map[hpke.AEAD]string{}
+var kemToName = map[hpke.KEM]string{}
+var kdfToName = map[hpke.KDF]string{}
+var aeadToName = map[hpke.AEAD]string{}
 var nameToKEM = map[string]hpke.KEM{}
 var nameToKDF = map[string]hpke.KDF{}
 var nameToAEAD = map[string]hpke.AEAD{}
@@ -40,19 +40,19 @@ func init() {
 		for _, name := range names {
 			nameToKEM[strings.ToLower(name)] = it
 		}
-		kemToID[it] = names[1]
+		kemToName[it] = names[1]
 	}
 	for it, names := range kdfMap {
 		for _, name := range names {
 			nameToKDF[strings.ToLower(name)] = it
 		}
-		kdfToID[it] = names[1]
+		kdfToName[it] = names[1]
 	}
 	for it, names := range aeadMap {
 		for _, name := range names {
 			nameToAEAD[strings.ToLower(name)] = it
 		}
-		aeadToID[it] = names[1]
+		aeadToName[it] = names[1]
 	}
 }
 
