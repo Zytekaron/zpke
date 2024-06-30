@@ -9,7 +9,8 @@ import (
 	"github.com/cloudflare/circl/hpke"
 	"github.com/spf13/pflag"
 	"golang.org/x/crypto/argon2"
-	"hpke-cli/ckhpke"
+
+	"github.com/zytekaron/zpke/ckhpke"
 )
 
 var modeGenerate, modeEncrypt, modeDecrypt bool

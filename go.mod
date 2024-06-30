@@ -1,4 +1,4 @@
-module hpke-cli
+module github.com/zytekaron/zpke
 
 go 1.22.4
 
