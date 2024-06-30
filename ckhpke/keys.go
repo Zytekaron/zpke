@@ -19,6 +19,7 @@ import (
 const currentKeyAEAD = "aes-gcm"
 const currentKeyKDF = "hkdf_sha512"
 
+var ErrInvalidSeedLength = errors.New("invalid seed length for kem")
 var ErrInvalidPEMType = errors.New("invalid type in pem block")
 var ErrInvalidKDF = errors.New("invalid kdf identifier")
 var ErrInvalidAEAD = errors.New("invalid aead identifier")
@@ -27,8 +28,34 @@ var ErrInvalidAEAD = errors.New("invalid aead identifier")
 func GenerateKeyPair(kem hpke.KEM, name, comment string) (*PublicKey, *PrivateKey, error) {
 	publicKey, privateKey, err := kem.Scheme().GenerateKeyPair()
 	if err != nil {
-		return nil, nil, fmt.Errorf("generating key pair: %w", err)
+		return nil, nil, fmt.Errorf("error generating key pair: %w", err)
 	}
+
+	pk := &PublicKey{
+		PublicKey: publicKey,
+		KEM:       kem,
+		Name:      name,
+		Comment:   comment,
+	}
+	sk := &PrivateKey{
+		PrivateKey: privateKey,
+		KEM:        kem,
+		Name:       name,
+		Comment:    comment,
+	}
+	return pk, sk, nil
+}
+
+// GenerateKeyPairFromSeed generates a key pair based on the provided hpke.KEM and seed.
+//
+// The seed slice must be the correct length for the KEM, kem.Scheme().SeedSize().
+func GenerateKeyPairFromSeed(kem hpke.KEM, seed []byte, name, comment string) (*PublicKey, *PrivateKey, error) {
+	scheme := kem.Scheme()
+	if len(seed) != scheme.SeedSize() {
+		return nil, nil, ErrInvalidSeedLength
+	}
+
+	publicKey, privateKey := scheme.DeriveKeyPair(seed)
 
 	pk := &PublicKey{
 		PublicKey: publicKey,

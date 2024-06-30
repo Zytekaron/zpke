@@ -8,6 +8,7 @@ import (
 
 	"github.com/cloudflare/circl/hpke"
 	"github.com/spf13/pflag"
+	"golang.org/x/crypto/argon2"
 	"hpke-cli/ckhpke"
 )
 
@@ -81,6 +82,7 @@ func init() {
 }
 
 func main() {
+	testDeterministicKeyPair()
 	testSaveLoadKeys()
 
 	return // run tests
@@ -131,6 +133,30 @@ func try2[T, U any](t T, u U, err error) (T, U) {
 		panic("try: " + err.Error())
 	}
 	return t, u
+}
+
+func testDeterministicKeyPair() {
+	const password = "Password123"
+
+	kem := hpke.KEM_P521_HKDF_SHA512
+	scheme := kem.Scheme()
+
+	start := time.Now()
+	seed := argon2.IDKey([]byte(password), nil, 4, 256*1024, 4, uint32(scheme.SeedSize()))
+	elapsed := time.Since(start)
+	fmt.Printf("(argon2: %d ms)\n\n", elapsed.Milliseconds())
+
+	apk, ask, err := ckhpke.GenerateKeyPairFromSeed(kem, seed, "A", "Key A")
+	if err != nil {
+		log.Fatalln("generate 1:", err)
+	}
+
+	bpk, bsk, err := ckhpke.GenerateKeyPairFromSeed(kem, seed, "B", "Key B")
+	if err != nil {
+		log.Fatalln("generate 2:", err)
+	}
+
+	fmt.Println("same?", apk.Signature() == bpk.Signature() && ask.Signature() == bsk.Signature())
 }
 
 func testSaveLoadKeys() {
