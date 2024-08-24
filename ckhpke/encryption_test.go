@@ -31,8 +31,6 @@ func TestEncryptDecrypt(t *testing.T) {
 		t.Fatal("error encrypting content:", err)
 	}
 
-	t.Log(">>" + ct.String() + "<<")
-
 	err = TestLoadDecrypt(res, ct, sk)
 	if err != nil {
 		t.Fatal("error decrypting content:", err)

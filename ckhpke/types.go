@@ -1,7 +1,6 @@
 package ckhpke
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 
@@ -23,10 +22,10 @@ type EncryptionHeader struct {
 
 // ParseEncryptionHeader reads and parses an encryption header
 // block from a *bufio.Scanner until reaching a blank line.
-func ParseEncryptionHeader(scanner *bufio.Scanner) (*EncryptionHeader, error) {
+func ParseEncryptionHeader(r io.Reader) (*EncryptionHeader, error) {
 	header := &EncryptionHeader{}
 
-	parser := NewINIParserFromScanner(scanner)
+	parser := NewINIParser(r)
 	ini, err := parser.Parse()
 	if err != nil {
 		return nil, err
@@ -72,7 +71,7 @@ func (h *EncryptionHeader) Encode() []byte {
 }
 
 func (h *EncryptionHeader) toINI() *INI {
-	ini := &INI{}
+	ini := NewINI()
 	ini.SetInt("version", h.Version)
 	ini.Set("kem", kemToName[h.KEM])
 	ini.Set("kdf", kdfToName[h.KDF])

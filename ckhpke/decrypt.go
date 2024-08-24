@@ -2,6 +2,7 @@ package ckhpke
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -14,8 +15,21 @@ import (
 func TestLoadDecrypt(w io.Writer, r io.Reader, privateKey *PrivateKey) error {
 	scanner := bufio.NewScanner(r)
 
+	// read header portion (until \n\n)
+	headerText := &bytes.Buffer{}
+
+	for scanner.Scan() {
+		text := scanner.Text()
+		if text == "" {
+			break
+		}
+
+		headerText.WriteString(text)
+		headerText.WriteString("\n")
+	}
+
 	// read header data
-	header, err := ParseEncryptionHeader(scanner)
+	header, err := ParseEncryptionHeader(headerText)
 	if err != nil {
 		return fmt.Errorf("error reading header: %w", err)
 	}

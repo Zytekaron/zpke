@@ -45,7 +45,25 @@ type INI struct {
 	Sections map[string]INIMap
 }
 
-func (i *INI) Section(name string) (INIMap, bool) {
+func NewINI() *INI {
+	return &INI{
+		INIMap:   INIMap{},
+		Sections: map[string]INIMap{},
+	}
+}
+
+func (i *INI) Section(name string) INIMap {
+	m, ok := i.Sections[name]
+	if ok {
+		return m
+	}
+
+	m = INIMap{}
+	i.Sections[name] = m
+	return m
+}
+
+func (i *INI) MaybeSection(name string) (INIMap, bool) {
 	m, ok := i.Sections[name]
 	return m, ok
 }
@@ -112,10 +130,7 @@ func NewINIParserFromScanner(scanner *bufio.Scanner) *INIParser {
 }
 
 func (p *INIParser) Parse() (*INI, error) {
-	ini := &INI{
-		INIMap:   INIMap{},
-		Sections: map[string]INIMap{},
-	}
+	ini := NewINI()
 
 	for p.scanner.Scan() {
 		line := strings.TrimSpace(p.scanner.Text())
@@ -147,7 +162,7 @@ func (p *INIParser) Parse() (*INI, error) {
 
 		split := strings.SplitN(line, "=", 2)
 		if len(split) != 2 {
-			return ini, fmt.Errorf("key-value line missing '%s'", line)
+			return ini, fmt.Errorf("key-value line missing equals '%s'", line)
 		}
 
 		key := strings.TrimSpace(split[0])
