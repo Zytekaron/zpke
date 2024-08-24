@@ -81,7 +81,6 @@ func parseLine(line string) (string, string, bool) {
 	}
 	label, value := parts[0], parts[1]
 	label = strings.TrimSpace(label)
-	label = strings.ToLower(label)
 	value = strings.TrimSpace(value)
 	return label, value, true
 }

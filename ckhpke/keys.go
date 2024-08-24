@@ -23,6 +23,7 @@ var ErrInvalidSeedLength = errors.New("invalid seed length for kem")
 var ErrInvalidPEMType = errors.New("invalid type in pem block")
 var ErrInvalidKDF = errors.New("invalid kdf identifier")
 var ErrInvalidAEAD = errors.New("invalid aead identifier")
+var ErrMismatchedKEM = errors.New("the key does not match the provided KEM")
 
 // GenerateKeyPair generates a key pair based on the provided hpke.KEM.
 func GenerateKeyPair(kem hpke.KEM, name, comment string) (*PublicKey, *PrivateKey, error) {

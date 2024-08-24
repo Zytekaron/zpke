@@ -1,7 +1,6 @@
 package ckhpke
 
 import (
-	"errors"
 	"strings"
 
 	"github.com/cloudflare/circl/hpke"
@@ -33,24 +32,22 @@ var nameToKEM = map[string]hpke.KEM{}
 var nameToKDF = map[string]hpke.KDF{}
 var nameToAEAD = map[string]hpke.AEAD{}
 
-var ErrMismatchedKEM = errors.New("the key does not match the provided KEM")
-
 func init() {
 	for it, names := range kemMap {
 		for _, name := range names {
-			nameToKEM[strings.ToLower(name)] = it
+			nameToKEM[name] = it
 		}
 		kemToName[it] = names[1]
 	}
 	for it, names := range kdfMap {
 		for _, name := range names {
-			nameToKDF[strings.ToLower(name)] = it
+			nameToKDF[name] = it
 		}
 		kdfToName[it] = names[1]
 	}
 	for it, names := range aeadMap {
 		for _, name := range names {
-			nameToAEAD[strings.ToLower(name)] = it
+			nameToAEAD[name] = it
 		}
 		aeadToName[it] = names[1]
 	}

@@ -13,7 +13,7 @@ import (
 // program, incremented when there are breaking
 // changes to allow detection and processing of
 // old versions instantiated using prior builds.
-const encryptVersion = 0
+const encryptVersion = -1 // no defined format for version -1
 
 // encryptBufferSize is the buffer size used for
 // chunking input files/streams for encryption.
