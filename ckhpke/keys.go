@@ -1,15 +1,11 @@
 package ckhpke
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 
 	"github.com/cloudflare/circl/hpke"
@@ -26,19 +22,19 @@ var ErrInvalidAEAD = errors.New("invalid aead identifier")
 var ErrMismatchedKEM = errors.New("the key does not match the provided KEM")
 
 // GenerateKeyPair generates a key pair based on the provided hpke.KEM.
-func GenerateKeyPair(kem hpke.KEM, name, comment string) (*PublicKey, *PrivateKey, error) {
+func GenerateKeyPair(kem hpke.KEM, name, comment string) (*CKPublicKey, *CKPrivateKey, error) {
 	publicKey, privateKey, err := kem.Scheme().GenerateKeyPair()
 	if err != nil {
 		return nil, nil, fmt.Errorf("error generating key pair: %w", err)
 	}
 
-	pk := &PublicKey{
+	pk := &CKPublicKey{
 		PublicKey: publicKey,
 		KEM:       kem,
 		Name:      name,
 		Comment:   comment,
 	}
-	sk := &PrivateKey{
+	sk := &CKPrivateKey{
 		PrivateKey: privateKey,
 		KEM:        kem,
 		Name:       name,
@@ -50,7 +46,7 @@ func GenerateKeyPair(kem hpke.KEM, name, comment string) (*PublicKey, *PrivateKe
 // GenerateKeyPairFromSeed generates a key pair based on the provided hpke.KEM and seed.
 //
 // The seed slice must be the correct length for the KEM, kem.Scheme().SeedSize().
-func GenerateKeyPairFromSeed(kem hpke.KEM, seed []byte, name, comment string) (*PublicKey, *PrivateKey, error) {
+func GenerateKeyPairFromSeed(kem hpke.KEM, seed []byte, name, comment string) (*CKPublicKey, *CKPrivateKey, error) {
 	scheme := kem.Scheme()
 	if len(seed) != scheme.SeedSize() {
 		return nil, nil, ErrInvalidSeedLength
@@ -58,13 +54,13 @@ func GenerateKeyPairFromSeed(kem hpke.KEM, seed []byte, name, comment string) (*
 
 	publicKey, privateKey := scheme.DeriveKeyPair(seed)
 
-	pk := &PublicKey{
+	pk := &CKPublicKey{
 		PublicKey: publicKey,
 		KEM:       kem,
 		Name:      name,
 		Comment:   comment,
 	}
-	sk := &PrivateKey{
+	sk := &CKPrivateKey{
 		PrivateKey: privateKey,
 		KEM:        kem,
 		Name:       name,
@@ -93,60 +89,6 @@ func keyEncryptKDF(kdf string, key, salt []byte) ([]byte, error) {
 	}
 
 	return nil, ErrInvalidKDF
-}
-
-// privateKeyEncrypt performs the appropriate encryption algorithm over the key.
-func privateKeyEncrypt(algorithm string, key, plaintext []byte) (nonce, result []byte, err error) {
-	switch algorithm {
-	case "aes-gcm":
-		// create block and gcm
-		block, err := aes.NewCipher(key)
-		if err != nil {
-			return nil, nil, fmt.Errorf("error creating aes cipher: %w", err)
-		}
-		c, err := cipher.NewGCM(block)
-		if err != nil {
-			return nil, nil, fmt.Errorf("error creating gcm: %w", err)
-		}
-
-		// generate nonce
-		nonce := make([]byte, c.NonceSize())
-		_, err = io.ReadFull(rand.Reader, nonce)
-		if err != nil {
-			return nil, nil, fmt.Errorf("error reading random data: %w", err)
-		}
-
-		// encrypt key into new buffer
-		result := c.Seal(nil, nonce, plaintext, nil)
-		return nonce, result, nil
-	}
-
-	return nil, nil, ErrInvalidAEAD
-}
-
-func privateKeyDecrypt(algorithm string, key, nonce, ciphertext []byte) (result []byte, err error) {
-	switch algorithm {
-	case "aes-gcm":
-		// create block and gcm
-		block, err := aes.NewCipher(key)
-		if err != nil {
-			return nil, fmt.Errorf("error creating aes cipher: %w", err)
-		}
-		c, err := cipher.NewGCM(block)
-		if err != nil {
-			return nil, fmt.Errorf("error creating gcm: %w", err)
-		}
-
-		// encrypt key into new buffer
-		result, err := c.Open(nil, nonce, ciphertext, nil)
-		if err != nil {
-			return nil, fmt.Errorf("error opening: %w", err)
-		}
-
-		return result, nil
-	}
-
-	return nil, ErrInvalidAEAD
 }
 
 // readPem reads a *pem.Block from a file.

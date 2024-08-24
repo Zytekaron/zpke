@@ -16,7 +16,7 @@ import (
 var validKeyAEADs = []string{"aes-gcm"}
 var validKeyKDFs = []string{"hkdf_sha512"}
 
-func LoadPrivateKey(filePath string, key []byte) (*PrivateKey, error) {
+func LoadPrivateKey(filePath string, key []byte) (*CKPrivateKey, error) {
 	block, err := readPem(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("error reading pem file: %w", err)
@@ -50,7 +50,7 @@ func LoadPrivateKey(filePath string, key []byte) (*PrivateKey, error) {
 		return nil, fmt.Errorf("error parsing private key bytes: %w", err)
 	}
 
-	return &PrivateKey{
+	return &CKPrivateKey{
 		PrivateKey: privateKey,
 		KEM:        header.KEM,
 		Name:       header.Name,
@@ -58,7 +58,7 @@ func LoadPrivateKey(filePath string, key []byte) (*PrivateKey, error) {
 	}, nil
 }
 
-func SavePrivateKey(filePath string, privateKey *PrivateKey, key []byte) error {
+func SavePrivateKey(filePath string, privateKey *CKPrivateKey, key []byte) error {
 	keyBytes, err := privateKey.Key().MarshalBinary()
 	if err != nil {
 		return fmt.Errorf("error marshalling private key: %w", err)
@@ -106,18 +106,18 @@ func SavePrivateKey(filePath string, privateKey *PrivateKey, key []byte) error {
 	return nil
 }
 
-type PrivateKey struct {
+type CKPrivateKey struct {
 	PrivateKey kem.PrivateKey
 	KEM        hpke.KEM
 	Name       string
 	Comment    string
 }
 
-func (k *PrivateKey) Key() kem.PrivateKey {
+func (k *CKPrivateKey) Key() kem.PrivateKey {
 	return k.PrivateKey
 }
 
-func (k *PrivateKey) Signature() string {
+func (k *CKPrivateKey) Signature() string {
 	bytes, err := k.PrivateKey.MarshalBinary()
 	if err != nil {
 		panic(err)
@@ -125,7 +125,7 @@ func (k *PrivateKey) Signature() string {
 	return hex.EncodeToString(bytes[:8])
 }
 
-func (k *PrivateKey) String() string {
+func (k *CKPrivateKey) String() string {
 	var buf strings.Builder
 	buf.WriteString(k.Name)
 	buf.WriteString(" (")

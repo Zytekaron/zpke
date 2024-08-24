@@ -26,12 +26,12 @@ func TestEncryptDecrypt(t *testing.T) {
 	ct := &bytes.Buffer{}
 	res := &bytes.Buffer{}
 
-	err = TestEncryptSave(ct, pt, suite, pk)
+	err = Encrypt(ct, pt, suite, pk)
 	if err != nil {
 		t.Fatal("error encrypting content:", err)
 	}
 
-	err = TestLoadDecrypt(res, ct, sk)
+	err = Decrypt(res, ct, sk)
 	if err != nil {
 		t.Fatal("error decrypting content:", err)
 	}

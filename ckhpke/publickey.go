@@ -10,7 +10,7 @@ import (
 	"github.com/cloudflare/circl/kem"
 )
 
-func LoadPublicKey(filePath string) (*PublicKey, error) {
+func LoadPublicKey(filePath string) (*CKPublicKey, error) {
 	block, err := readPem(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("error reading pem file: %w", err)
@@ -34,7 +34,7 @@ func LoadPublicKey(filePath string) (*PublicKey, error) {
 		return nil, fmt.Errorf("error parsing public key bytes: %w", err)
 	}
 
-	return &PublicKey{
+	return &CKPublicKey{
 		PublicKey: publicKey,
 		KEM:       kemName,
 		Name:      header.Name,
@@ -42,7 +42,7 @@ func LoadPublicKey(filePath string) (*PublicKey, error) {
 	}, nil
 }
 
-func SavePublicKey(filePath string, publicKey *PublicKey) error {
+func SavePublicKey(filePath string, publicKey *CKPublicKey) error {
 	keyBytes, err := publicKey.Key().MarshalBinary()
 	if err != nil {
 		return fmt.Errorf("error marshalling public key: %w", err)
@@ -60,18 +60,18 @@ func SavePublicKey(filePath string, publicKey *PublicKey) error {
 	return nil
 }
 
-type PublicKey struct {
+type CKPublicKey struct {
 	PublicKey kem.PublicKey
 	KEM       hpke.KEM
 	Name      string
 	Comment   string
 }
 
-func (k *PublicKey) Key() kem.PublicKey {
+func (k *CKPublicKey) Key() kem.PublicKey {
 	return k.PublicKey
 }
 
-func (k *PublicKey) Signature() string {
+func (k *CKPublicKey) Signature() string {
 	bytes, err := k.PublicKey.MarshalBinary()
 	if err != nil {
 		panic(err)
@@ -79,7 +79,7 @@ func (k *PublicKey) Signature() string {
 	return hex.EncodeToString(bytes[:8])
 }
 
-func (k *PublicKey) String() string {
+func (k *CKPublicKey) String() string {
 	var buf strings.Builder
 	buf.WriteString(k.Name)
 	buf.WriteString(" (")

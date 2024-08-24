@@ -11,10 +11,11 @@ import (
 	"github.com/cloudflare/circl/hpke"
 )
 
-func TestLoadDecrypt(w io.Writer, r io.Reader, privateKey *PrivateKey) error {
+// Decrypt decrypts a stream of content given a *CKPrivateKey.
+func Decrypt(w io.Writer, r io.Reader, privateKey *CKPrivateKey) error {
 	scanner := bufio.NewScanner(r)
 
-	// read header portion (until \n\n)
+	// read ini header (followed by a single blank line)
 	headerText := &bytes.Buffer{}
 	for scanner.Scan() {
 		text := scanner.Text()
@@ -37,6 +38,7 @@ func TestLoadDecrypt(w io.Writer, r io.Reader, privateKey *PrivateKey) error {
 
 	suite := hpke.NewSuite(header.KEM, header.KDF, header.AEAD)
 
+	// create a new receiver and opener context for the message
 	receiver, err := suite.NewReceiver(privateKey.Key(), nil)
 	if err != nil {
 		log.Fatalln("creating receiver:", err)

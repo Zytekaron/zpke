@@ -21,12 +21,14 @@ const encryptVersion = -1 // no defined format for version -1
 // encodes to base64, and writes to the output stream.
 const encryptBufferSize = 4096
 
-func TestEncryptSave(w io.Writer, r io.Reader, suite hpke.Suite, publicKey *PublicKey) error {
+// Encrypt encrypts a stream of content given a hpke.Suite and a *CKPublicKey.
+func Encrypt(w io.Writer, r io.Reader, suite hpke.Suite, publicKey *CKPublicKey) error {
 	kem, kdf, aead := suite.Params()
 	if kem != publicKey.KEM {
 		return ErrMismatchedKEM
 	}
 
+	// create a new sender and sealer context for the message
 	sender, err := suite.NewSender(publicKey.Key(), nil)
 	if err != nil {
 		return fmt.Errorf("error creating sender: %w", err)
