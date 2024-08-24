@@ -62,6 +62,12 @@ func TestEncryptSave(w io.Writer, r io.Reader, suite hpke.Suite, publicKey *Publ
 }
 
 func encryptToWriter(w io.Writer, r io.Reader, sealer hpke.Sealer) (int, error) {
+	// calculate the size of the ciphertext based on the buffer length,
+	// then use it to create a buffer for base64 encoded output.
+	_, _, aead := sealer.Suite().Params()
+	bufLen := int(aead.CipherLen(encryptBufferSize))
+	encoded := make([]byte, base64.RawURLEncoding.EncodedLen(bufLen))
+
 	var err error
 	bytesWritten := 0
 	buf := make([]byte, encryptBufferSize)
@@ -78,11 +84,15 @@ func encryptToWriter(w io.Writer, r io.Reader, sealer hpke.Sealer) (int, error) 
 				break
 			}
 
-			encoded := make([]byte, base64.RawURLEncoding.EncodedLen(len(sealed)))
-			base64.RawURLEncoding.Encode(encoded, sealed)
+			// slice the output buffer here for the last pass in case the
+			// sealed buffer length won't fill len(encoded) after encoding.
+			encodedLen := base64.RawURLEncoding.EncodedLen(len(sealed))
+			encodedSlice := encoded[:encodedLen]
+
+			base64.RawURLEncoding.Encode(encodedSlice, sealed)
 
 			// write the output
-			nw, ew := w.Write(encoded)
+			nw, ew := w.Write(encodedSlice)
 			bytesWritten += nw
 			if ew != nil {
 				err = ew

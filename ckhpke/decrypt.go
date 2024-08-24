@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"strings"
 
 	"github.com/cloudflare/circl/hpke"
 )
@@ -17,7 +16,6 @@ func TestLoadDecrypt(w io.Writer, r io.Reader, privateKey *PrivateKey) error {
 
 	// read header portion (until \n\n)
 	headerText := &bytes.Buffer{}
-
 	for scanner.Scan() {
 		text := scanner.Text()
 		if text == "" {
@@ -50,20 +48,20 @@ func TestLoadDecrypt(w io.Writer, r io.Reader, privateKey *PrivateKey) error {
 
 	var decodeBuf []byte
 	for scanner.Scan() {
-		bytes := scanner.Bytes()
-		if len(bytes) == 0 {
+		b := scanner.Bytes()
+		if len(b) == 0 {
 			continue
 		}
 
 		// calculate buffer size, create on first line
-		decodedLen := base64.RawURLEncoding.DecodedLen(len(bytes))
+		decodedLen := base64.RawURLEncoding.DecodedLen(len(b))
 		if decodeBuf == nil {
 			decodeBuf = make([]byte, decodedLen)
 		}
 
 		// decode line
 		buf := decodeBuf[:decodedLen]
-		_, err := base64.RawURLEncoding.Decode(buf, bytes)
+		_, err := base64.RawURLEncoding.Decode(buf, b)
 		if err != nil {
 			return err
 		}
@@ -86,15 +84,4 @@ func TestLoadDecrypt(w io.Writer, r io.Reader, privateKey *PrivateKey) error {
 	}
 
 	return nil
-}
-
-func parseLine(line string) (string, string, bool) {
-	parts := strings.SplitN(line, ":", 2)
-	if len(parts) != 2 {
-		return "", "", false
-	}
-	label, value := parts[0], parts[1]
-	label = strings.TrimSpace(label)
-	value = strings.TrimSpace(value)
-	return label, value, true
 }
